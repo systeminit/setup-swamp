@@ -1,0 +1,116 @@
+name: "Setup Swamp"
+description: "Download and install swamp, optionally authenticate with swamp.club and initialize a repository"
+branding:
+  icon: "terminal"
+  color: "green"
+
+inputs:
+  version:
+    description: "Swamp version to install (default: latest)"
+    required: false
+    default: "latest"
+  api-key:
+    description: "API key for authenticating with swamp.club (set as SWAMP_API_KEY env var)"
+    required: false
+  swamp-club-url:
+    description: "Override the swamp.club server URL (default: https://swamp.club)"
+    required: false
+  repo-init:
+    description: "Run swamp repo init after setup"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Determine platform and architecture
+      id: platform
+      shell: bash
+      run: |
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+
+        case "$OS" in
+          linux)  PLATFORM="linux" ;;
+          darwin) PLATFORM="darwin" ;;
+          *)
+            echo "::error::Unsupported OS: $OS"
+            exit 1
+            ;;
+        esac
+
+        case "$ARCH" in
+          x86_64)  ARCH="x86_64" ;;
+          aarch64|arm64) ARCH="aarch64" ;;
+          *)
+            echo "::error::Unsupported architecture: $ARCH"
+            exit 1
+            ;;
+        esac
+
+        echo "platform=${PLATFORM}" >> "$GITHUB_OUTPUT"
+        echo "arch=${ARCH}" >> "$GITHUB_OUTPUT"
+        echo "binary=swamp-${PLATFORM}-${ARCH}" >> "$GITHUB_OUTPUT"
+
+    - name: Resolve version
+      id: version
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          TAG=$(gh release view --repo systeminit/swamp --json tagName --jq '.tagName')
+        else
+          TAG="${{ inputs.version }}"
+        fi
+        echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+    - name: Download swamp
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        INSTALL_DIR="${RUNNER_TEMP}/swamp"
+        mkdir -p "${INSTALL_DIR}"
+
+        gh release download "${{ steps.version.outputs.tag }}" \
+          --repo systeminit/swamp \
+          --pattern "${{ steps.platform.outputs.binary }}" \
+          --dir "${INSTALL_DIR}"
+
+        mv "${INSTALL_DIR}/${{ steps.platform.outputs.binary }}" "${INSTALL_DIR}/swamp"
+        chmod +x "${INSTALL_DIR}/swamp"
+
+        echo "${INSTALL_DIR}" >> "$GITHUB_PATH"
+
+    - name: Verify installation
+      shell: bash
+      run: |
+        swamp --version
+
+    - name: Set SWAMP_CLUB_URL
+      if: inputs.swamp-club-url != ''
+      shell: bash
+      run: |
+        echo "SWAMP_CLUB_URL=${{ inputs.swamp-club-url }}" >> "$GITHUB_ENV"
+
+    - name: Set SWAMP_API_KEY
+      if: inputs.api-key != ''
+      shell: bash
+      run: |
+        echo "SWAMP_API_KEY=${{ inputs.api-key }}" >> "$GITHUB_ENV"
+
+    - name: Verify authentication
+      if: inputs.api-key != ''
+      shell: bash
+      env:
+        SWAMP_API_KEY: ${{ inputs.api-key }}
+        SWAMP_CLUB_URL: ${{ inputs.swamp-club-url }}
+      run: |
+        swamp auth whoami
+
+    - name: Initialize repository
+      if: inputs.repo-init == 'true'
+      shell: bash
+      run: |
+        swamp repo init
