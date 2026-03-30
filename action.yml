@@ -20,6 +20,11 @@ inputs:
     required: false
     default: "false"
 
+outputs:
+  version:
+    description: "The version of swamp that was installed"
+    value: ${{ steps.verify.outputs.version }}
+
 runs:
   using: "composite"
   steps:
@@ -57,11 +62,12 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+        INPUT_VERSION: ${{ inputs.version }}
       run: |
-        if [ "${{ inputs.version }}" = "latest" ]; then
+        if [ "$INPUT_VERSION" = "latest" ]; then
           TAG=$(gh release view --repo systeminit/swamp --json tagName --jq '.tagName')
         else
-          TAG="${{ inputs.version }}"
+          TAG="$INPUT_VERSION"
         fi
         echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
@@ -69,36 +75,60 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+        RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        BINARY_NAME: ${{ steps.platform.outputs.binary }}
       run: |
         INSTALL_DIR="${RUNNER_TEMP}/swamp"
         mkdir -p "${INSTALL_DIR}"
 
-        gh release download "${{ steps.version.outputs.tag }}" \
+        gh release download "$RELEASE_TAG" \
           --repo systeminit/swamp \
-          --pattern "${{ steps.platform.outputs.binary }}" \
+          --pattern "$BINARY_NAME" \
+          --pattern "checksums.txt" \
           --dir "${INSTALL_DIR}"
 
-        mv "${INSTALL_DIR}/${{ steps.platform.outputs.binary }}" "${INSTALL_DIR}/swamp"
-        chmod +x "${INSTALL_DIR}/swamp"
+        # Verify checksum
+        cd "${INSTALL_DIR}"
+        EXPECTED=$(grep "$BINARY_NAME" checksums.txt | awk '{print $1}')
+        ACTUAL=$(sha256sum "$BINARY_NAME" | awk '{print $1}')
+        if [ "$EXPECTED" != "$ACTUAL" ]; then
+          echo "::error::Checksum verification failed for $BINARY_NAME"
+          echo "::error::Expected: $EXPECTED"
+          echo "::error::Actual:   $ACTUAL"
+          exit 1
+        fi
+        echo "Checksum verified for $BINARY_NAME"
+        rm checksums.txt
+
+        mv "$BINARY_NAME" swamp
+        chmod +x swamp
 
         echo "${INSTALL_DIR}" >> "$GITHUB_PATH"
 
     - name: Verify installation
+      id: verify
       shell: bash
       run: |
-        swamp --version
+        VERSION=$(swamp --version)
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "Installed swamp ${VERSION}"
+
+    - name: Mask and set SWAMP_API_KEY
+      if: inputs.api-key != ''
+      shell: bash
+      env:
+        SWAMP_API_KEY: ${{ inputs.api-key }}
+      run: |
+        echo "::add-mask::${SWAMP_API_KEY}"
+        echo "SWAMP_API_KEY=${SWAMP_API_KEY}" >> "$GITHUB_ENV"
 
     - name: Set SWAMP_CLUB_URL
       if: inputs.swamp-club-url != ''
       shell: bash
+      env:
+        SWAMP_CLUB_URL: ${{ inputs.swamp-club-url }}
       run: |
-        echo "SWAMP_CLUB_URL=${{ inputs.swamp-club-url }}" >> "$GITHUB_ENV"
-
-    - name: Set SWAMP_API_KEY
-      if: inputs.api-key != ''
-      shell: bash
-      run: |
-        echo "SWAMP_API_KEY=${{ inputs.api-key }}" >> "$GITHUB_ENV"
+        echo "SWAMP_CLUB_URL=${SWAMP_CLUB_URL}" >> "$GITHUB_ENV"
 
     - name: Verify authentication
       if: inputs.api-key != ''
