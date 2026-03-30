@@ -70,9 +70,6 @@ runs:
     - name: Verify authentication
       if: inputs.api-key != ''
       shell: bash
-      env:
-        SWAMP_API_KEY: ${{ inputs.api-key }}
-        SWAMP_CLUB_URL: ${{ inputs.swamp-club-url }}
       run: |
         swamp auth whoami
 
