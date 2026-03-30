@@ -44,6 +44,22 @@ jobs:
       - name: Verify swamp runs
         run: swamp --version
 
+  test-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run setup-swamp with auth
+        uses: ./
+        with:
+          api-key: ${{ secrets.SWAMP_API_KEY }}
+
+      - name: Verify SWAMP_API_KEY is set in env
+        run: test -n "$SWAMP_API_KEY"
+
+      - name: Verify swamp commands work authenticated
+        run: swamp auth whoami
+
   test-repo-init:
     runs-on: ubuntu-latest
     steps:
