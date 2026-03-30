@@ -6,9 +6,9 @@ branding:
 
 inputs:
   version:
-    description: "Swamp version to install (default: latest)"
+    description: "Swamp version to install (default: stable)"
     required: false
-    default: "latest"
+    default: "stable"
   api-key:
     description: "API key for authenticating with swamp.club (set as SWAMP_API_KEY env var)"
     required: false
@@ -28,80 +28,17 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Determine platform and architecture
-      id: platform
-      shell: bash
-      run: |
-        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-        ARCH=$(uname -m)
-
-        case "$OS" in
-          linux)  PLATFORM="linux" ;;
-          darwin) PLATFORM="darwin" ;;
-          *)
-            echo "::error::Unsupported OS: $OS"
-            exit 1
-            ;;
-        esac
-
-        case "$ARCH" in
-          x86_64)  ARCH="x86_64" ;;
-          aarch64|arm64) ARCH="aarch64" ;;
-          *)
-            echo "::error::Unsupported architecture: $ARCH"
-            exit 1
-            ;;
-        esac
-
-        echo "platform=${PLATFORM}" >> "$GITHUB_OUTPUT"
-        echo "arch=${ARCH}" >> "$GITHUB_OUTPUT"
-        echo "binary=swamp-${PLATFORM}-${ARCH}" >> "$GITHUB_OUTPUT"
-
-    - name: Resolve version
-      id: version
+    - name: Install swamp
       shell: bash
       env:
-        GH_TOKEN: ${{ github.token }}
         INPUT_VERSION: ${{ inputs.version }}
-      run: |
-        if [ "$INPUT_VERSION" = "latest" ]; then
-          TAG=$(gh release view --repo systeminit/swamp --json tagName --jq '.tagName')
-        else
-          TAG="$INPUT_VERSION"
-        fi
-        echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
-    - name: Download swamp
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-        RELEASE_TAG: ${{ steps.version.outputs.tag }}
-        BINARY_NAME: ${{ steps.platform.outputs.binary }}
       run: |
         INSTALL_DIR="${RUNNER_TEMP}/swamp"
         mkdir -p "${INSTALL_DIR}"
 
-        gh release download "$RELEASE_TAG" \
-          --repo systeminit/swamp \
-          --pattern "$BINARY_NAME" \
-          --pattern "checksums.txt" \
-          --dir "${INSTALL_DIR}"
-
-        # Verify checksum
-        cd "${INSTALL_DIR}"
-        EXPECTED=$(grep "$BINARY_NAME" checksums.txt | awk '{print $1}')
-        ACTUAL=$(sha256sum "$BINARY_NAME" | awk '{print $1}')
-        if [ "$EXPECTED" != "$ACTUAL" ]; then
-          echo "::error::Checksum verification failed for $BINARY_NAME"
-          echo "::error::Expected: $EXPECTED"
-          echo "::error::Actual:   $ACTUAL"
-          exit 1
-        fi
-        echo "Checksum verified for $BINARY_NAME"
-        rm checksums.txt
-
-        mv "$BINARY_NAME" swamp
-        chmod +x swamp
+        curl -sSfL https://artifacts.systeminit.com/install.sh | sh -s -- \
+          -V "$INPUT_VERSION" \
+          -d "$INSTALL_DIR"
 
         echo "${INSTALL_DIR}" >> "$GITHUB_PATH"
 

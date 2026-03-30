@@ -15,20 +15,20 @@ optionally authenticate with [swamp.club](https://swamp.club).
 
 | Input            | Required | Default  | Description                                        |
 |------------------|----------|----------|----------------------------------------------------|
-| `version`        | No       | `latest` | Swamp version to install (release tag)             |
+| `version`        | No       | `stable` | Swamp version to install                           |
 | `api-key`        | No       |          | API key for authenticating with swamp.club         |
 | `swamp-club-url` | No       |          | Override the swamp.club server URL                 |
 | `repo-init`      | No       | `false`  | Run `swamp repo init` after setup                  |
 
 ### Outputs
 
-| Output    | Description                          |
-|-----------|--------------------------------------|
+| Output    | Description                             |
+|-----------|-----------------------------------------|
 | `version` | The version of swamp that was installed |
 
 ### Examples
 
-**Install latest and authenticate:**
+**Install stable and authenticate:**
 
 ```yaml
 steps:
@@ -46,7 +46,7 @@ steps:
   - uses: actions/checkout@v4
   - uses: systeminit/setup-swamp@v1
     with:
-      version: v0.5.0
+      version: 20250218.210911.0-sha.bda1ce6ea
 ```
 
 **Install, authenticate, and initialize the repo:**
@@ -63,16 +63,15 @@ steps:
 
 ## How it works
 
-1. Downloads the swamp binary for the runner's OS and architecture from GitHub
-   releases
-2. Verifies the downloaded binary against the release checksums
-3. Adds swamp to `PATH`
+1. Installs swamp using the official install script from
+   `artifacts.systeminit.com/install.sh`
+2. Adds swamp to `PATH`
+3. If `api-key` is provided, masks the value in logs and sets `SWAMP_API_KEY` as
+   an environment variable for all subsequent steps, then verifies authentication
+   with `swamp auth whoami`
 4. If `swamp-club-url` is provided, sets `SWAMP_CLUB_URL` as an environment
    variable for all subsequent steps
-5. If `api-key` is provided, masks the value in logs, sets `SWAMP_API_KEY` as
-   an environment variable for all subsequent steps, and verifies authentication
-   with `swamp auth whoami`
-6. If `repo-init` is `true`, runs `swamp repo init`
+5. If `repo-init` is `true`, runs `swamp repo init`
 
 ## Supported platforms
 
