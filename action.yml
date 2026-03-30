@@ -1,0 +1,80 @@
+name: "Setup Swamp"
+description: "Download and install swamp, optionally authenticate with swamp.club and initialize a repository"
+branding:
+  icon: "terminal"
+  color: "green"
+
+inputs:
+  version:
+    description: "Swamp version to install (default: stable)"
+    required: false
+    default: "stable"
+  api-key:
+    description: "API key for authenticating with swamp.club (set as SWAMP_API_KEY env var)"
+    required: false
+  swamp-club-url:
+    description: "Override the swamp.club server URL (default: https://swamp.club)"
+    required: false
+  repo-init:
+    description: "Run swamp repo init after setup"
+    required: false
+    default: "false"
+
+outputs:
+  version:
+    description: "The version of swamp that was installed"
+    value: ${{ steps.verify.outputs.version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install swamp
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        INSTALL_DIR="${RUNNER_TEMP}/swamp"
+        mkdir -p "${INSTALL_DIR}"
+
+        curl -sSfL https://artifacts.systeminit.com/install.sh | sh -s -- \
+          -V "$INPUT_VERSION" \
+          -d "$INSTALL_DIR"
+
+        echo "${INSTALL_DIR}" >> "$GITHUB_PATH"
+
+    - name: Verify installation
+      id: verify
+      shell: bash
+      run: |
+        VERSION=$(swamp --version)
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "Installed swamp ${VERSION}"
+
+    - name: Mask and set SWAMP_API_KEY
+      if: inputs.api-key != ''
+      shell: bash
+      env:
+        SWAMP_API_KEY: ${{ inputs.api-key }}
+      run: |
+        echo "::add-mask::${SWAMP_API_KEY}"
+        echo "SWAMP_API_KEY=${SWAMP_API_KEY}" >> "$GITHUB_ENV"
+
+    - name: Set SWAMP_CLUB_URL
+      if: inputs.swamp-club-url != ''
+      shell: bash
+      env:
+        SWAMP_CLUB_URL: ${{ inputs.swamp-club-url }}
+      run: |
+        echo "SWAMP_CLUB_URL=${SWAMP_CLUB_URL}" >> "$GITHUB_ENV"
+
+    - name: Verify authentication
+      if: inputs.api-key != ''
+      shell: bash
+      run: |
+        swamp auth whoami
+
+    - name: Initialize repository
+      if: inputs.repo-init == 'true'
+      shell: bash
+      run: |
+        swamp repo init

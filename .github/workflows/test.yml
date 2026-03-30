@@ -1,0 +1,74 @@
+name: Test setup-swamp
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-install:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run setup-swamp (install only)
+        uses: ./
+        id: setup
+
+      - name: Verify swamp is on PATH
+        run: which swamp
+
+      - name: Verify swamp runs
+        run: swamp --version
+
+      - name: Verify version output
+        run: |
+          echo "Installed version: ${{ steps.setup.outputs.version }}"
+          test -n "${{ steps.setup.outputs.version }}"
+
+  test-specific-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run setup-swamp with specific version
+        uses: ./
+        with:
+          version: stable
+
+      - name: Verify swamp runs
+        run: swamp --version
+
+  test-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run setup-swamp with auth
+        uses: ./
+        with:
+          api-key: ${{ secrets.SWAMP_API_KEY }}
+
+      - name: Verify SWAMP_API_KEY is set in env
+        run: test -n "$SWAMP_API_KEY"
+
+      - name: Verify swamp commands work authenticated
+        run: swamp auth whoami
+
+  test-repo-init:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run setup-swamp with repo-init
+        uses: ./
+        with:
+          repo-init: true
+
+      - name: Verify .swamp directory was created
+        run: test -d .swamp
