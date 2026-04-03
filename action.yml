@@ -56,6 +56,11 @@ runs:
       env:
         SWAMP_API_KEY: ${{ inputs.api-key }}
       run: |
+        # Reject values containing newlines to prevent GITHUB_ENV injection
+        if [[ "$SWAMP_API_KEY" == *$'\n'* ]]; then
+          echo "::error::api-key must not contain newlines"
+          exit 1
+        fi
         echo "::add-mask::${SWAMP_API_KEY}"
         echo "SWAMP_API_KEY=${SWAMP_API_KEY}" >> "$GITHUB_ENV"
 
@@ -65,6 +70,16 @@ runs:
       env:
         SWAMP_CLUB_URL: ${{ inputs.swamp-club-url }}
       run: |
+        # Reject values containing newlines to prevent GITHUB_ENV injection
+        if [[ "$SWAMP_CLUB_URL" == *$'\n'* ]]; then
+          echo "::error::swamp-club-url must not contain newlines"
+          exit 1
+        fi
+        # Validate URL scheme
+        if [[ "$SWAMP_CLUB_URL" != https://* ]]; then
+          echo "::error::swamp-club-url must use https://"
+          exit 1
+        fi
         echo "SWAMP_CLUB_URL=${SWAMP_CLUB_URL}" >> "$GITHUB_ENV"
 
     - name: Verify authentication
