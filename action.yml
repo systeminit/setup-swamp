@@ -86,7 +86,12 @@ runs:
       if: inputs.api-key != ''
       shell: bash
       run: |
-        swamp auth whoami
+        AUTH_STATUS=$(swamp auth whoami --json | jq -r '.authenticated')
+        if [ "$AUTH_STATUS" != "true" ]; then
+          echo "::error::Authentication failed"
+          exit 1
+        fi
+        echo "Authentication verified successfully"
 
     - name: Initialize repository
       if: inputs.repo-init == 'true'
