@@ -1,5 +1,5 @@
 name: "Setup Swamp"
-description: "Download and install swamp, optionally authenticate with swamp.club and initialize a repository"
+description: "(DEPRECATED: moved to swamp-club/setup-swamp) Download and install swamp, optionally authenticate with swamp.club and initialize a repository"
 branding:
   icon: "terminal"
   color: "green"
@@ -28,6 +28,10 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Deprecation notice
+      shell: bash
+      run: echo "::warning title=setup-swamp has moved::systeminit/setup-swamp is deprecated and will no longer receive updates. Please switch to swamp-club/setup-swamp."
+
     - name: Install swamp
       shell: bash
       env:

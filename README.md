@@ -1,5 +1,14 @@
 # setup-swamp
 
+> [!WARNING]
+> **This action has moved to [swamp-club/setup-swamp](https://github.com/swamp-club/setup-swamp).**
+> This repository is deprecated and will no longer receive updates. Please update your workflows:
+>
+> ```diff
+> - - uses: systeminit/setup-swamp@v0.1.1
+> + - uses: swamp-club/setup-swamp@<version>
+> ```
+
 A GitHub Action to install [swamp](https://github.com/systeminit/swamp) and
 optionally authenticate with [swamp.club](https://swamp.club).
 
