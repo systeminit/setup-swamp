@@ -1,5 +1,5 @@
 name: "Setup Swamp"
-description: "(DEPRECATED: moved to swamp-club/setup-swamp) Download and install swamp, optionally authenticate with swamp.club and initialize a repository"
+description: "DEPRECATED: moved to swamp-club/setup-swamp. Install swamp and optionally authenticate with swamp.club"
 branding:
   icon: "terminal"
   color: "green"
